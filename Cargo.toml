@@ -1,0 +1,19 @@
+[package]
+name = "clarity_vs_wasmer"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+
+[dev-dependencies]
+clarity-repl = "1.7.0"
+wasmer = "4.0.0"
+criterion = "0.5.1"
+
+[[bench]]
+name = "benchmark"
+harness = false
