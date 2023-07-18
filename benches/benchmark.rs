@@ -1,3 +1,5 @@
+use std::borrow::BorrowMut;
+
 use clarity_repl::clarity::stacks_common::types::StacksEpochId;
 use clarity_repl::{
     clarity::{ast::ContractAST, ClarityVersion},
@@ -5,7 +7,7 @@ use clarity_repl::{
 };
 use clarity_vs_wasmer::{add, reverse_buff32};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use wasmer::{imports, Instance, Module, Store, Value};
+use wasmer_compiler_singlepass::Singlepass;
 
 fn rust_add(c: &mut Criterion) {
     c.bench_function("add: rust", |b| {
@@ -62,18 +64,88 @@ fn clarity_add(c: &mut Criterion) {
     });
 }
 
-fn wasm_add(c: &mut Criterion) {
-    c.bench_function("add: wasm", |b| {
+fn wasmer_add(c: &mut Criterion) {
+    c.bench_function("add: wasmer", |b| {
         let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
-        let mut store = Store::default();
-        let module = Module::new(&store, module_wat).unwrap();
-        let import_object = imports! {};
-        let instance = Instance::new(&mut store, &module, &import_object).unwrap();
+        let mut store = wasmer::Store::default();
+        let module = wasmer::Module::new(&store, module_wat).unwrap();
+        let import_object = wasmer::imports! {};
+        let instance = wasmer::Instance::new(&mut store, &module, &import_object).unwrap();
         let wasm_add = instance.exports.get_function("add").unwrap();
 
         b.iter(|| {
             wasm_add
-                .call(&mut store, &[Value::I32(42), Value::I32(12345)])
+                .call(
+                    &mut store,
+                    &[wasmer::Value::I32(42), wasmer::Value::I32(12345)],
+                )
+                .unwrap();
+        })
+    });
+}
+
+fn wasmer_singlepass_add(c: &mut Criterion) {
+    c.bench_function("add: wasmer singlepass", |b| {
+        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let compiler = Singlepass::new();
+        let mut store = wasmer::Store::new(compiler);
+        let module = wasmer::Module::new(&store, module_wat).unwrap();
+        let import_object = wasmer::imports! {};
+        let instance = wasmer::Instance::new(&mut store, &module, &import_object).unwrap();
+        let wasm_add = instance.exports.get_function("add").unwrap();
+
+        b.iter(|| {
+            wasm_add
+                .call(
+                    &mut store,
+                    &[wasmer::Value::I32(42), wasmer::Value::I32(12345)],
+                )
+                .unwrap();
+        })
+    });
+}
+
+fn wasmtime_add(c: &mut Criterion) {
+    c.bench_function("add: wasmtime", |b| {
+        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let engine = wasmtime::Engine::default();
+        let mut store = wasmtime::Store::new(&engine, ());
+        let module = wasmtime::Module::new(&engine, module_wat).unwrap();
+        let instance = wasmtime::Instance::new(&mut store.borrow_mut(), &module, &[]).unwrap();
+        let wasm_add = instance.get_func(&mut store.borrow_mut(), "add").unwrap();
+
+        b.iter(|| {
+            let mut results = [wasmtime::Val::I32(0)];
+            wasm_add
+                .call(
+                    &mut store.borrow_mut(),
+                    &[wasmtime::Val::I32(42), wasmtime::Val::I32(12345)],
+                    &mut results,
+                )
+                .unwrap();
+        })
+    });
+}
+
+fn wasmtime_interpreted_add(c: &mut Criterion) {
+    c.bench_function("add: wasmtime interpreted", |b| {
+        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let mut config = wasmtime::Config::new();
+        config.cranelift_opt_level(wasmtime::OptLevel::None);
+        let engine = wasmtime::Engine::new(&config).unwrap();
+        let mut store = wasmtime::Store::new(&engine, ());
+        let module = wasmtime::Module::new(&engine, module_wat).unwrap();
+        let instance = wasmtime::Instance::new(&mut store.borrow_mut(), &module, &[]).unwrap();
+        let wasm_add = instance.get_func(&mut store.borrow_mut(), "add").unwrap();
+
+        b.iter(|| {
+            let mut results = [wasmtime::Val::I32(0)];
+            wasm_add
+                .call(
+                    &mut store.borrow_mut(),
+                    &[wasmtime::Val::I32(42), wasmtime::Val::I32(12345)],
+                    &mut results,
+                )
                 .unwrap();
         })
     });
@@ -139,13 +211,13 @@ fn clarity_reverse_buff32(c: &mut Criterion) {
     });
 }
 
-fn wasm_reverse_buff32(c: &mut Criterion) {
-    c.bench_function("reverse: wasm", |b| {
+fn wasmer_reverse_buff32(c: &mut Criterion) {
+    c.bench_function("reverse: wasmer", |b| {
         let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
-        let mut store = Store::default();
-        let module = Module::new(&store, module_wat).unwrap();
-        let import_object = imports! {};
-        let instance = Instance::new(&mut store, &module, &import_object).unwrap();
+        let mut store = wasmer::Store::default();
+        let module = wasmer::Module::new(&store, module_wat).unwrap();
+        let import_object = wasmer::imports! {};
+        let instance = wasmer::Instance::new(&mut store, &module, &import_object).unwrap();
         let wasm_reverse_buff32 = instance.exports.get_function("reverse_buff32").unwrap();
 
         // Prepare the buffer to be passed to the wasm function
@@ -162,9 +234,9 @@ fn wasm_reverse_buff32(c: &mut Criterion) {
                 .call(
                     &mut store,
                     &[
-                        Value::I32(buffer.len() as i32),
-                        Value::I32(0),
-                        Value::I32(buffer.len() as i32),
+                        wasmer::Value::I32(buffer.len() as i32),
+                        wasmer::Value::I32(0),
+                        wasmer::Value::I32(buffer.len() as i32),
                     ],
                 )
                 .unwrap();
@@ -172,11 +244,136 @@ fn wasm_reverse_buff32(c: &mut Criterion) {
     });
 }
 
-criterion_group!(add_benches, clarity_add, wasm_add, rust_add);
+fn wasmer_singlepass_reverse_buff32(c: &mut Criterion) {
+    c.bench_function("reverse: wasmer singlepass", |b| {
+        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let compiler = Singlepass::new();
+        let mut store = wasmer::Store::new(compiler);
+        let module = wasmer::Module::new(&store, module_wat).unwrap();
+        let import_object = wasmer::imports! {};
+        let instance = wasmer::Instance::new(&mut store, &module, &import_object).unwrap();
+        let wasm_reverse_buff32 = instance.exports.get_function("reverse_buff32").unwrap();
+
+        // Prepare the buffer to be passed to the wasm function
+        let memory = instance.exports.get_memory("memory").unwrap();
+        let buffer = (1..=32).collect::<Vec<u8>>();
+        let memory_view = memory.view(&store);
+        for (i, byte) in buffer.iter().enumerate() {
+            memory_view.write(i as u64, &[*byte]).unwrap();
+        }
+
+        b.iter(|| {
+            // Call the function with a pointer to the result buffer, a pointer to the start of the input buffer and the length of the buffer.
+            wasm_reverse_buff32
+                .call(
+                    &mut store,
+                    &[
+                        wasmer::Value::I32(buffer.len() as i32),
+                        wasmer::Value::I32(0),
+                        wasmer::Value::I32(buffer.len() as i32),
+                    ],
+                )
+                .unwrap();
+        })
+    });
+}
+
+fn wasmtime_reverse_buff32(c: &mut Criterion) {
+    c.bench_function("reverse: wasmtime", |b| {
+        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let engine = wasmtime::Engine::default();
+        let mut store = wasmtime::Store::new(&engine, ());
+        let module = wasmtime::Module::new(&engine, module_wat).unwrap();
+        let instance = wasmtime::Instance::new(&mut store.borrow_mut(), &module, &[]).unwrap();
+        let wasm_reverse_buff32 = instance
+            .get_func(&mut store.borrow_mut(), "reverse_buff32")
+            .unwrap();
+
+        // Prepare the buffer to be passed to the wasm function
+        let memory = instance
+            .get_memory(&mut store.borrow_mut(), "memory")
+            .expect("failed to find `memory` export");
+        let buffer = (1..=32).collect::<Vec<u8>>();
+        let mut binding = store.borrow_mut();
+        let memory_writer = memory.data_mut(&mut binding);
+        for (i, byte) in buffer.iter().enumerate() {
+            memory_writer[i] = *byte;
+        }
+
+        let mut results = [];
+        b.iter(|| {
+            wasm_reverse_buff32
+                .call(
+                    &mut store.borrow_mut(),
+                    &[
+                        wasmtime::Val::I32(buffer.len() as i32),
+                        wasmtime::Val::I32(0),
+                        wasmtime::Val::I32(buffer.len() as i32),
+                    ],
+                    &mut results,
+                )
+                .unwrap();
+        })
+    });
+}
+
+fn wasmtime_interpreted_reverse_buff32(c: &mut Criterion) {
+    c.bench_function("reverse: wasmtime interpreted", |b| {
+        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let mut config = wasmtime::Config::new();
+        config.cranelift_opt_level(wasmtime::OptLevel::None);
+        let engine = wasmtime::Engine::new(&config).unwrap();
+        let mut store = wasmtime::Store::new(&engine, ());
+        let module = wasmtime::Module::new(&engine, module_wat).unwrap();
+        let instance = wasmtime::Instance::new(&mut store.borrow_mut(), &module, &[]).unwrap();
+        let wasm_reverse_buff32 = instance
+            .get_func(&mut store.borrow_mut(), "reverse_buff32")
+            .unwrap();
+
+        // Prepare the buffer to be passed to the wasm function
+        let memory = instance
+            .get_memory(&mut store.borrow_mut(), "memory")
+            .expect("failed to find `memory` export");
+        let buffer = (1..=32).collect::<Vec<u8>>();
+        let mut binding = store.borrow_mut();
+        let memory_writer = memory.data_mut(&mut binding);
+        for (i, byte) in buffer.iter().enumerate() {
+            memory_writer[i] = *byte;
+        }
+
+        let mut results = [];
+        b.iter(|| {
+            wasm_reverse_buff32
+                .call(
+                    &mut store.borrow_mut(),
+                    &[
+                        wasmtime::Val::I32(buffer.len() as i32),
+                        wasmtime::Val::I32(0),
+                        wasmtime::Val::I32(buffer.len() as i32),
+                    ],
+                    &mut results,
+                )
+                .unwrap();
+        })
+    });
+}
+
+criterion_group!(
+    add_benches,
+    clarity_add,
+    wasmer_singlepass_add,
+    wasmer_add,
+    wasmtime_interpreted_add,
+    wasmtime_add,
+    rust_add
+);
 criterion_group!(
     reverse_benches,
     clarity_reverse_buff32,
-    wasm_reverse_buff32,
+    wasmer_singlepass_reverse_buff32,
+    wasmer_reverse_buff32,
+    wasmtime_interpreted_reverse_buff32,
+    wasmtime_reverse_buff32,
     rust_reverse_buff32
 );
 criterion_main!(reverse_benches, add_benches);
