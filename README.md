@@ -9,17 +9,17 @@ This generates ./pkg/:
 ```sh
 pkg
 ├── README.md
-├── clarity_vs_wasmer.d.ts
-├── clarity_vs_wasmer.js
-├── clarity_vs_wasmer_bg.wasm
-├── clarity_vs_wasmer_bg.wasm.d.ts
+├── clarity_vs_wasm.d.ts
+├── clarity_vs_wasm.js
+├── clarity_vs_wasm_bg.wasm
+├── clarity_vs_wasm_bg.wasm.d.ts
 └── package.json
 ```
 
 We can generate the text-based Wasm (WAT) file from the .wasm file using:
 
 ```sh
-wasm2wat pkg/clarity_vs_wasmer_bg.wasm -o clarity_vs_wasmer.wat
+wasm2wat pkg/clarity_vs_wasm_bg.wasm -o clarity_vs_wasm.wat
 ```
 
 ## Run Benchmarks

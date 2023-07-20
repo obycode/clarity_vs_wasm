@@ -438,7 +438,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "clarity_vs_wasmer"
+name = "clarity_vs_wasm"
 version = "0.1.0"
 dependencies = [
  "clarity-repl",

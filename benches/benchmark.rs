@@ -5,7 +5,7 @@ use clarity_repl::{
     clarity::{ast::ContractAST, ClarityVersion},
     repl::{ClarityCodeSource, ClarityContract, ContractDeployer, Session, SessionSettings},
 };
-use clarity_vs_wasmer::{reverse_buff32, add128};
+use clarity_vs_wasm::{reverse_buff32, add128};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use wasmer_compiler_singlepass::Singlepass;
 
@@ -66,7 +66,7 @@ fn clarity_add(c: &mut Criterion) {
 
 fn wasmer_add(c: &mut Criterion) {
     c.bench_function("add: wasmer", |b| {
-        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let module_wat = include_str!("../pkg/clarity_vs_wasm.wat");
         let mut store = wasmer::Store::default();
         let module = wasmer::Module::new(&store, module_wat).unwrap();
         let import_object = wasmer::imports! {};
@@ -86,7 +86,7 @@ fn wasmer_add(c: &mut Criterion) {
 
 fn wasmer_singlepass_add(c: &mut Criterion) {
     c.bench_function("add: wasmer singlepass", |b| {
-        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let module_wat = include_str!("../pkg/clarity_vs_wasm.wat");
         let compiler = Singlepass::new();
         let mut store = wasmer::Store::new(compiler);
         let module = wasmer::Module::new(&store, module_wat).unwrap();
@@ -107,7 +107,7 @@ fn wasmer_singlepass_add(c: &mut Criterion) {
 
 fn wasmtime_add(c: &mut Criterion) {
     c.bench_function("add: wasmtime", |b| {
-        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let module_wat = include_str!("../pkg/clarity_vs_wasm.wat");
         let engine = wasmtime::Engine::default();
         let mut store = wasmtime::Store::new(&engine, ());
         let module = wasmtime::Module::new(&engine, module_wat).unwrap();
@@ -129,7 +129,7 @@ fn wasmtime_add(c: &mut Criterion) {
 
 fn wasmtime_interpreted_add(c: &mut Criterion) {
     c.bench_function("add: wasmtime interpreted", |b| {
-        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let module_wat = include_str!("../pkg/clarity_vs_wasm.wat");
         let mut config = wasmtime::Config::new();
         config.cranelift_opt_level(wasmtime::OptLevel::None);
         let engine = wasmtime::Engine::new(&config).unwrap();
@@ -213,7 +213,7 @@ fn clarity_reverse_buff32(c: &mut Criterion) {
 
 fn wasmer_reverse_buff32(c: &mut Criterion) {
     c.bench_function("reverse: wasmer", |b| {
-        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let module_wat = include_str!("../pkg/clarity_vs_wasm.wat");
         let mut store = wasmer::Store::default();
         let module = wasmer::Module::new(&store, module_wat).unwrap();
         let import_object = wasmer::imports! {};
@@ -246,7 +246,7 @@ fn wasmer_reverse_buff32(c: &mut Criterion) {
 
 fn wasmer_singlepass_reverse_buff32(c: &mut Criterion) {
     c.bench_function("reverse: wasmer singlepass", |b| {
-        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let module_wat = include_str!("../pkg/clarity_vs_wasm.wat");
         let compiler = Singlepass::new();
         let mut store = wasmer::Store::new(compiler);
         let module = wasmer::Module::new(&store, module_wat).unwrap();
@@ -280,7 +280,7 @@ fn wasmer_singlepass_reverse_buff32(c: &mut Criterion) {
 
 fn wasmtime_reverse_buff32(c: &mut Criterion) {
     c.bench_function("reverse: wasmtime", |b| {
-        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let module_wat = include_str!("../pkg/clarity_vs_wasm.wat");
         let engine = wasmtime::Engine::default();
         let mut store = wasmtime::Store::new(&engine, ());
         let module = wasmtime::Module::new(&engine, module_wat).unwrap();
@@ -319,7 +319,7 @@ fn wasmtime_reverse_buff32(c: &mut Criterion) {
 
 fn wasmtime_interpreted_reverse_buff32(c: &mut Criterion) {
     c.bench_function("reverse: wasmtime interpreted", |b| {
-        let module_wat = include_str!("../pkg/clarity_vs_wasmer.wat");
+        let module_wat = include_str!("../pkg/clarity_vs_wasm.wat");
         let mut config = wasmtime::Config::new();
         config.cranelift_opt_level(wasmtime::OptLevel::None);
         let engine = wasmtime::Engine::new(&config).unwrap();
