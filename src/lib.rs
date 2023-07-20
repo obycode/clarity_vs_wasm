@@ -1,7 +1,11 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
-pub fn add(a: i32, b: i32) -> i32 {
+pub fn add(a: i64, b: i64) -> i64 {
+    a + b
+}
+
+pub fn add128(a: i128, b: i128) -> i128 {
     a + b
 }
 

@@ -5,14 +5,14 @@ use clarity_repl::{
     clarity::{ast::ContractAST, ClarityVersion},
     repl::{ClarityCodeSource, ClarityContract, ContractDeployer, Session, SessionSettings},
 };
-use clarity_vs_wasmer::{add, reverse_buff32};
+use clarity_vs_wasmer::{reverse_buff32, add128};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use wasmer_compiler_singlepass::Singlepass;
 
 fn rust_add(c: &mut Criterion) {
     c.bench_function("add: rust", |b| {
         b.iter(|| {
-            black_box(add(black_box(42), black_box(12345)));
+            black_box(add128(black_box(42), black_box(12345)));
         })
     });
 }
